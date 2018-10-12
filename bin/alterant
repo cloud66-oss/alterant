@@ -1,0 +1,170 @@
+#!/usr/bin/env ruby
+require 'thor'
+require 'yaml'
+require 'colorize'
+require_relative '../lib/alterant'
+
+module Alterant
+	class AlterantCLI < Thor
+		package_name "alterant"
+
+		desc "version", "Show Alterant version"
+		def version
+			say "#{::Alterant::APP_NAME} #{::Alterant::VERSION}\n#{::Alterant::COPYRIGHT_MESSAGE}"
+		end
+
+		desc "update", "Update Alterant to the latest version"
+		option :version, type: :string, desc: "Force a specific version"
+		def update
+			say "Updating Alterant..."
+			unless options[:version]
+				say `gem install alterant --no-ri --no-rdoc`
+			else
+				say `gem install alterant -v #{options[:version]} --no-ri --no-rdoc`
+			end
+		end
+
+		desc "modify", "Runs the given script against a file"
+		option :modifier, type: :string, desc: "Alterant JS script"
+		option :in, type: :string, desc: "Input configuration file"
+		option :out, type: :string, desc: "Output configuration file"
+		option :output_format, type: :string, enum: ['yaml', 'json'], default: 'yaml', desc: "Output format"
+		option :diff, type: :boolean, default: false, desc: "Return the diff instead of the output itself"
+		option :debug, type: :boolean, default: false
+		option :input_format, type: :string, enum: ['yaml', 'json'], default: 'yaml', desc: "Input format if it's based on a stream and not a file"
+		option :overwrite, type: :boolean, default: false
+		def modify
+			$debug = options[:debug] || false
+			overwrite = options[:overwrite]
+			diff = options[:diff]
+			output_format = options[:output_format]
+			input_format = options[:input_format]
+
+			in_file = options[:in]
+			if !in_file
+				STDERR.puts "No input file provided. Use --in option".red
+				exit(1)
+			end
+			if in_file != '-'
+				unless File.exists?(in_file)
+					STDERR.puts "Input file #{in_file} not found".red
+					exit(1)
+				end
+				# detect the type
+				input_ext = File.extname(in_file)
+				unless ['.yaml', '.yml', '.json'].include? input_ext
+					STDERR.puts "Only yaml and json files are supported for input".red
+					exit(1)
+				end
+				if ['.yaml', '.yml'].include?(input_ext)
+					input_format = 'yaml'
+				else
+					input_format = 'json'
+				end
+
+				output_format = input_format if !output_format
+			end
+
+			modifier_file = options[:modifier]
+			if !modifier_file
+				STDERR.puts "No script file provided. Use --modifier option".red
+				exit(1)
+			end
+			unless File.exists?(modifier_file)
+				STDERR.puts "Modifier file #{modifier_file} not found".red
+				exit(1)
+			end
+
+			out_file = options[:out]
+			if out_file
+				if !overwrite && File.exists?(out_file)
+					STDERR.puts "Output file #{out_file} already exists. Use --overwrite flag to overwrite it".red
+					exit(1)
+				end
+			else
+				out_file = '-' # output to stdout
+			end
+
+
+			data = []
+			if in_file == '-'
+				input_text = STDIN.read
+			else
+				input_text = File.read(in_file)
+			end
+
+			if input_format == 'yaml'
+				if input_text.empty?
+					STDERR.puts "Empty input file".red
+					exit(2)
+				end
+
+				input_text.split('---').each_with_index do |part, idx|
+					part_data = YAML.load(part)
+					data << part_data
+				end
+
+			else
+				file_data = JSON.parse(input_text)
+				if file_data.is_a? Array
+					data = file_data
+				else
+					data = [file_data]
+				end
+			end
+
+			run_context = {}
+			modifier = File.read(modifier_file)
+			if in_file != '-'
+				run_context[:basedir] = File.dirname(in_file)
+			end
+
+			run_context[:js_preload] = ::Alterant::Classes.LoadClasses
+			alter = ::Alterant::Alterant.new(input: data, modifier: modifier, filename: modifier_file, options: run_context)
+			results = alter.execute(timeout: 500)
+
+			if results.nil?
+				STDERR.puts "Aborting".red
+				exit(2)
+			end
+
+			if output_format == 'yaml' || output_format == 'yml'
+				converted_as_text = results.map { |r| r.to_yaml }.join("\n")
+				input = data.map { |r| r.to_yaml }.join("\n")
+			elsif output_format == 'json'
+				converted_as_text = JSON.pretty_generate(results)
+				input = JSON.pretty_generate(data)
+			end
+
+			if diff
+				output_as_text = Diffy::Diff.new(input, converted_as_text)
+			else
+				output_as_text = converted_as_text
+			end
+
+			if out_file == "-"
+				puts output_as_text
+			else
+				File.open(out_file, 'w') do |file|
+					file.write(output_as_text)
+				end
+			end
+			return true
+		rescue ::Alterant::ParseError => exc
+			STDERR.puts "Syntax error: #{exc.message}".red
+			return false
+		rescue ::Alterant::RuntimeError => exc
+			STDERR.puts "Runtime error: #{exc.message}".red
+			return false
+		rescue => exc
+			if $debug
+				raise
+			else
+				STDERR.puts exc
+			end
+			return false
+		end
+	end
+
+	AlterantCLI.start
+end
