@@ -1,0 +1,21 @@
+- image: gcr.io/cloudsql-docker/gce-proxy:1.11
+  name: cloudsql-proxy
+  command: ["/cloud_sql_proxy", "--dir=/cloudsql",
+            "-instances=$(INSTANCE_CONNECTION_NAME)=tcp:3306,$(RO_INSTANCE_CONNECTION_NAME)=tcp:3307",
+            "-credential_file=/secrets/cloudsql/credentials.json"]
+  resources:
+    requests:
+      cpu: 20m
+  envFrom:
+  - configMapRef:
+      name: app-config
+  volumeMounts:
+    - name: cloudsql-instance-credentials
+      mountPath: /secrets/cloudsql
+      readOnly: true
+    - name: ssl-certs
+      mountPath: /etc/ssl/certs
+    - name: cloudsql
+      mountPath: /cloudsql
+    - name: pod
+      mountPath: /var/pod
