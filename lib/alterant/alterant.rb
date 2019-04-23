@@ -42,7 +42,11 @@ module Alterant
 				if $debug
 					raise
 				else
-					raise ::Alterant::ParseError, "part: #{idx} - #{exc.message}, #{exc.backtrace.first}"
+					if defined? idx
+						raise ::Alterant::ParseError, "part: #{idx} - #{exc.message}, #{exc.backtrace.first}"
+					else
+						raise ::Alterant::ParseError, "#{exc.message}, #{exc.backtrace.first}"
+					end
 				end
 			rescue ::Alterant::AlterantError => exc
 				STDERR.puts exc.message.red
