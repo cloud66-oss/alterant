@@ -32,6 +32,8 @@ module Alterant
 		option :diff, type: :boolean, default: false, desc: "Return the diff instead of the output itself"
 		option :debug, type: :boolean, default: false
 		option :input_format, type: :string, enum: ['yaml', 'json'], default: 'yaml', desc: "Input format if it's based on a stream and not a file"
+		option :mem, type: :numeric, default: 1048576, desc: 'Maximum memory allowed to the modifier in bytes'
+		option :timeout, type: :numeric, default: 500, desc: 'Timeout allowed for the modifier in milliseconds'
 		option :overwrite, type: :boolean, default: false
 		def modify
 			$debug = options[:debug] || false
@@ -39,6 +41,8 @@ module Alterant
 			diff = options[:diff]
 			output_format = options[:output_format]
 			input_format = options[:input_format]
+			max_mem = options[:mem]
+			timeout = options[:timeout]
 
 			in_file = options[:in]
 			if !in_file
@@ -121,7 +125,7 @@ module Alterant
 
 			run_context[:js_preload] = ::Alterant::Classes.LoadClasses
 			alter = ::Alterant::Alterant.new(input: data, modifier: modifier, filename: modifier_file, options: run_context)
-			results = alter.execute(timeout: 500)
+			results = alter.execute(timeout: timeout, max_memory: max_mem)
 
 			if results.nil?
 				STDERR.puts "Aborting".red
