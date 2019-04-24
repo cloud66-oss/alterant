@@ -1,0 +1,3 @@
+name: istio-proxy
+image: istio.io/proxy:0.5.0
+args: ["proxy","sidecar","--configPath","/etc/istio/proxy","--binaryPath","/usr/local/bin/envoy","--serviceCluster"]
