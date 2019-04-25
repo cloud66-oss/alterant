@@ -2,8 +2,10 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -19,27 +21,36 @@ import (
 var modifyCmd = &cobra.Command{
 	Use:   "modify",
 	Short: "Run transformer script on the given input",
-	Run:   execModify,
+	Run:   modifyExec,
 }
 
 var (
 	inFile  string
 	modFile string
+	timeout time.Duration
 	box     *packr.Box
 )
 
 func init() {
 	// get the static box setup
-	box = packr.New("lib_js", "./lib_js")
+	box = packr.New("libjs", "../libjs")
 
 	modifyCmd.Flags().StringVar(&inFile, "in", "", "input file (could be json or yaml)")
 	modifyCmd.Flags().StringVar(&modFile, "modifier", "", "modifier file (javascript)")
+	modifyCmd.Flags().DurationVar(&timeout, "timeout", 100*time.Millisecond, "execution timeout")
 
 	rootCmd.AddCommand(modifyCmd)
 }
 
-func execModify(cmd *cobra.Command, args []string) {
-	inputData, err := readInput()
+func modifyExec(cmd *cobra.Command, args []string) {
+	fmt.Println(box.FindString("containers.js.old"))
+	defer func() {
+		if r := recover(); r != nil {
+			log.Fatal(r)
+		}
+	}()
+
+	inputData, err := readInput(inFile)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -49,7 +60,10 @@ func execModify(cmd *cobra.Command, args []string) {
 		log.Fatal(err)
 	}
 
-	vm := otto.New()
+	vm, err := setupVM()
+	if err != nil {
+		logError(err)
+	}
 
 	if err = loadJSLib(vm); err != nil {
 		logError(err)
@@ -69,13 +83,6 @@ func execModify(cmd *cobra.Command, args []string) {
 		log.Fatal(err)
 	}
 
-	vm.Interrupt = make(chan func(), 1)
-	go func() {
-		time.Sleep(100 * time.Microsecond)
-		vm.Interrupt <- func() {
-			panic("timeout")
-		}
-	}()
 	// run
 	if _, err = vm.Run(script); err != nil {
 		logError(err)
@@ -95,9 +102,21 @@ func execModify(cmd *cobra.Command, args []string) {
 	fmt.Println(string(toPrint))
 }
 
-func readInput() ([]string, error) {
-	// read up
-	input, err := ioutil.ReadFile(modFile)
+func readInput(file string) ([]string, error) {
+	var input []byte
+	var err error
+
+	var reader io.Reader
+	if file == "-" {
+		reader = os.Stdin
+	} else {
+		reader, err = os.Open(file)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	input, err = ioutil.ReadAll(reader)
 	if err != nil {
 		log.Fatalf("in %s\n", err)
 	}
@@ -127,7 +146,7 @@ func loadJSLib(vm *otto.Otto) error {
 		}
 
 		// compile
-		class, err := vm.Compile("", classFile)
+		class, err := vm.Compile(libFile, classFile)
 		if err != nil {
 			return err
 		}
@@ -202,4 +221,17 @@ func fetchResult(vm *otto.Otto) (interface{}, error) {
 	}
 
 	return value.Export()
+}
+
+func setupVM() (*otto.Otto, error) {
+	vm := otto.New()
+	vm.Interrupt = make(chan func(), 1)
+	go func() {
+		time.Sleep(timeout)
+		vm.Interrupt <- func() {
+			panic(fmt.Sprintf("execution didn't complete within the %s timeout", timeout))
+		}
+	}()
+
+	return vm, nil
 }
