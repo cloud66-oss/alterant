@@ -3,8 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/khash/alterant/utils"
-
+	"github.com/cloud66-oss/alterant/utils"
 	"github.com/spf13/cobra"
 )
 

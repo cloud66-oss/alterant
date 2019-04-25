@@ -1,6 +1,6 @@
 package main
 
-import "github.com/khash/alterant/cmd"
+import "github.com/cloud66-oss/alterant/cmd"
 
 func main() {
 	cmd.Execute()

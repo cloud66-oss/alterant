@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cloud66-oss/alterant/lib"
 	"github.com/ghodss/yaml"
 	"github.com/gobuffalo/packr/v2"
-	"github.com/khash/alterant/lib"
 	"github.com/robertkrimen/otto"
 	_ "github.com/robertkrimen/otto/underscore" // this imports underscore into otto
 	"github.com/spf13/cobra"
