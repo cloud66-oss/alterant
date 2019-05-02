@@ -28,5 +28,5 @@ echo
 
 packr2
 # for now we're not building for windows as a result of an issue with gox + godirwalk
-gox -ldflags "-X github.com/cloud66/alterant/utils.Version=$version -X github.com/cloud66/alterant/utils.Channel=$channel" -os="darwin linux" -arch="amd64" -output "build/{{.OS}}_{{.Arch}}_$version"
+gox -ldflags "-X github.com/cloud66-oss/alterant/utils.Version=$version -X github.com/cloud66-oss/alterant/utils.Channel=$channel" -os="darwin linux" -arch="amd64" -output "build/{{.OS}}_{{.Arch}}_$version"
 packr2 clean
