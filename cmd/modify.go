@@ -42,8 +42,7 @@ func init() {
 	rootCmd.AddCommand(modifyCmd)
 }
 
-func modifyExec(cmd *cobra.Command, args []string) {
-	fmt.Println(box.FindString("containers.js.old"))
+func modifyExec(cmd *cobra.Command, args []string) {	
 	defer func() {
 		if r := recover(); r != nil {
 			log.Fatal(r)
