@@ -42,7 +42,7 @@ func init() {
 	rootCmd.AddCommand(modifyCmd)
 }
 
-func modifyExec(cmd *cobra.Command, args []string) {	
+func modifyExec(cmd *cobra.Command, args []string) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Fatal(r)
@@ -93,12 +93,18 @@ func modifyExec(cmd *cobra.Command, args []string) {
 		logError(err)
 	}
 
-	toPrint, err := yaml.Marshal(result)
-	if err != nil {
-		log.Fatal(err)
+	toPrint := make([]string, 0)
+	for _, part := range result {
+		// result is an array, but we need to convert it to a multipart yaml
+		partResult, err := yaml.Marshal(part)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		toPrint = append(toPrint, string(partResult))
 	}
 
-	fmt.Println(string(toPrint))
+	fmt.Println(strings.Join(toPrint, "---\n"))
 }
 
 func readInput(file string) ([]string, error) {
@@ -123,11 +129,17 @@ func readInput(file string) ([]string, error) {
 	inputData := make([]string, 0)
 	parts := strings.Split(string(input), "---")
 	for idx, part := range parts {
-		j, err := yaml.YAMLToJSON([]byte(part))
+		partString := strings.TrimSpace(part)
+		if len(partString) == 0 {
+			continue
+		}
+
+		j, err := yaml.YAMLToJSON([]byte(partString))
 		if err != nil {
 			return nil, fmt.Errorf("%s in part %d", err, idx)
 		}
 
+		// only add items with value
 		inputData = append(inputData, string(j))
 	}
 
@@ -208,7 +220,7 @@ func logError(err error) {
 	}
 }
 
-func fetchResult(vm *otto.Otto) (interface{}, error) {
+func fetchResult(vm *otto.Otto) ([]map[string]interface{}, error) {
 	// get the result
 	value, err := vm.Get("$$")
 	if err != nil {
@@ -219,7 +231,13 @@ func fetchResult(vm *otto.Otto) (interface{}, error) {
 		log.Fatalf("$$ is not an array")
 	}
 
-	return value.Export()
+	jsArray, err := value.Export()
+	if err != nil {
+		return nil, err
+	}
+
+	result := jsArray.([]map[string]interface{})
+	return result, nil
 }
 
 func setupVM() (*otto.Otto, error) {
