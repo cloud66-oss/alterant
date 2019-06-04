@@ -5,7 +5,7 @@ Alterant is a tool that transforms configuration files based on custom scripts. 
 
 ## Welcome to Alterant
 
-Alterant is a Descriptive Configuration Modifier. It reads configuration files in <code>yaml</code> or <code>json</code> and modifies them based on your scripts. You can think of it as an elegant and understandable equivalent of XSLT but for YAML!
+Alterant is a Descriptive Configuration Modifier. It reads configuration files in `yaml` and modifies them based on your scripts. You can think of it as an elegant and understandable equivalent of XSLT but for YAML!
 
 ### Why do I need Alterant?
 
@@ -19,83 +19,85 @@ If you want to collect your pod's logs and send them to a log management facilit
 2. Any change needs to be applied everywhere
 3. You can't apply them as part of your CI/CD based on environment unless you keep different configuration files for each environment.
 
-**Deploying log collection without Alterant**
+### Deploying log collection without Alterant
 
 *Your deployment without a sidecar:*
+
 ```yaml
 apiVersion: v1
 kind: Pod
 metadata:
-	name: counter
+    name: counter
 spec:
-	containers:
-	- name: count
-		image: my_app
-		args: ['--log-folder', '/var/log/app.log']
-		volumeMounts:
-		- name: varlog
-			mountPath: /var/log
-	volumes:
-	- name: varlog
-		emptyDir: {}
+    containers:
+    - name: count
+        image: my_app
+        args: ['--log-folder', '/var/log/app.log']
+        volumeMounts:
+        - name: varlog
+            mountPath: /var/log
+    volumes:
+    - name: varlog
+        emptyDir: {}
 ```
 
 *Your deployment with a sidecar:*
+
 ```yaml
 apiVersion: v1
 kind: Pod
 metadata:
-	name: counter
+    name: counter
 spec:
-	containers:
-	- name: count
-		image: my_app
-		args: ['--log-folder', '/var/log/app.log']
-		volumeMounts:
-		- name: varlog
-			mountPath: /var/log
-	- name: log-collector-sidecar
-		image: my_log_collector
-		args: ['--collect-from', '/var/log/app.log']
-		volumeMounts:
-		- name: varlog
-			mountPath: /var/log
-	volumes:
-	- name: varlog
-		emptyDir: {}
+    containers:
+    - name: count
+        image: my_app
+        args: ['--log-folder', '/var/log/app.log']
+        volumeMounts:
+        - name: varlog
+            mountPath: /var/log
+    - name: log-collector-sidecar
+        image: my_log_collector
+        args: ['--collect-from', '/var/log/app.log']
+        volumeMounts:
+        - name: varlog
+            mountPath: /var/log
+    volumes:
+    - name: varlog
+        emptyDir: {}
 ```
 
 As you can see, the following piece needs to be added to every Deployment configuration in your app:
 
 ```yaml
-	- name: log-collector-sidecar
-		image: my_log_collector
-		args: ['--collect-from', '/var/log/app.log']
-		volumeMounts:
-		- name: varlog
-			mountPath: /var/log
+    - name: log-collector-sidecar
+        image: my_log_collector
+        args: ['--collect-from', '/var/log/app.log']
+        volumeMounts:
+        - name: varlog
+            mountPath: /var/log
 ```
 
-**Deploying log collection with Alterant**
+### Deploying log collection with Alterant
 
 With Alterant, we can write a simple Javascript file to add the sidecar to any input Deployment resource:
 
 ```javascript
 sidecar = YamlReader("sidecar.yaml")
-$$.forEach(functin($) {
-	$.spec.template.spec.containers.push(sidecar)
+$$.forEach(function($) {
+    $.spec.template.spec.containers.push(sidecar)
 });
 ```
 
 I can then put the sidecar configuration in a file called `sidecar.yaml`:
 
 ```yaml
-	- name: log-collector-sidecar
-		image: my_log_collector
-		args: ['--collect-from', '/var/log/app.log']
-		volumeMounts:
-		- name: varlog
-			mountPath: /var/log
+    - name: log-collector-sidecar
+        image: my_log_collector
+        args: ['--collect-from', '/var/log/app.log']
+        volumeMounts:
+        - name: varlog
+            mountPath: /var/log
 ```
 
 Now all I have to do is to run Alterant:
@@ -117,7 +119,7 @@ See the Getting started section in the wiki section of this repository.
 Being able to change configuration files with a script might tempt us to do it more often than we should! Obviously it is up to you how you use Alterant, but we have some suggestions as when to use and not use use Alterant.
 
 1. Use Alterant as an automatic step to add or modify generic and repetitive configuration parts to your configuration files.
-2. Use Alterant to make sure your configuration files adhere to your best practices or policies. If validation of configuration files is your main purpose for using Alterant, you can use [check out Copper](/copper/index.html).
+2. Use Alterant to make sure your configuration files adhere to your best practices or policies. If validation of configuration files is your main purpose for using Alterant, you can use [check out Copper](https://github.com/cloud66-oss/copper).
 3. Do not use Alterant to change a configuration file to another just because you don't want to create a duplicate. An example is when your Kubernetes configuration files are slightly different between 2 clusters. You should use placeholders, templates or [Cloud 66 Skycap](https://cloud66.com/containers/skycap) for that!
 4. Do not use Alterant to obfuscate changes to configuration files as an automatic step. Alterant applies changes to the configuration files before they are applied to the application (ie. your Kubernetes cluster) exactly because it wants to make those changes transparent. Don't use Alterant as a magic step!
 
