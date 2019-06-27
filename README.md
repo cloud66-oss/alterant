@@ -1,3 +1,5 @@
+<img src="http://cdn2-cloud66-com.s3.amazonaws.com/images/oss-sponsorship.png" width=150/>
+
 # Alterant
 
 Alterant is a tool that transforms configuration files based on custom scripts.  It reads configuration files in yaml or json and modifies them based on your scripts.
