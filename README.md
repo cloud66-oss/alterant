@@ -1,7 +1,14 @@
+<img src="http://cdn2-cloud66-com.s3.amazonaws.com/images/oss-sponsorship.png" width=150/>
+
 # Alterant
 
 Alterant is a tool that transforms configuration files based on custom scripts.  It reads configuration files in yaml or json and modifies them based on your scripts.
 
+- Help Pages: https://help.cloud66.com/alterant/
+- Slack Channel: [Join Our Slack Community](https://communityinviter.com/apps/cloud66ers/cloud-66-community)
+- Articles: https://blog.cloud66.com/tag/alterant/
+
+![Logo alterant](https://blog.cloud66.com/content/images/2019/07/cloud66-alterant.png)
 
 ## Welcome to Alterant
 
