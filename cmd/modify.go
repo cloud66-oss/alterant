@@ -25,10 +25,12 @@ var modifyCmd = &cobra.Command{
 }
 
 var (
-	inFile  string
-	modFile string
-	timeout time.Duration
-	box     *packr.Box
+	inFile      string
+	modFile     string
+	contextFile string
+	context     string
+	timeout     time.Duration
+	box         *packr.Box
 )
 
 func init() {
@@ -38,6 +40,7 @@ func init() {
 	modifyCmd.Flags().StringVar(&inFile, "in", "", "input file (could be json or yaml)")
 	modifyCmd.Flags().StringVar(&modFile, "modifier", "", "modifier file (javascript)")
 	modifyCmd.Flags().DurationVar(&timeout, "timeout", 100*time.Millisecond, "execution timeout")
+	modifyCmd.Flags().StringVar(&contextFile, "context", "", "context file (json)")
 
 	rootCmd.AddCommand(modifyCmd)
 }
@@ -59,6 +62,14 @@ func modifyExec(cmd *cobra.Command, args []string) {
 		log.Fatal(err)
 	}
 
+	if contextFile != "" {
+		contextByte, err := ioutil.ReadFile(contextFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		context = string(contextByte)
+	}
+
 	vm, err := setupVM()
 	if err != nil {
 		logError(err)
@@ -73,6 +84,10 @@ func modifyExec(cmd *cobra.Command, args []string) {
 	}
 
 	if err = loadGlobals(inputData, vm); err != nil {
+		logError(err)
+	}
+
+	if err = loadContext(context, vm); err != nil {
 		logError(err)
 	}
 
@@ -191,6 +206,19 @@ func loadGoLib(vm *otto.Otto) error {
 
 		return result
 	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func loadContext(context string, vm *otto.Otto) error {
+	if context == "" {
+		context = "{}"
+	}
+
+	_, err := vm.Object("$context = " + context)
 	if err != nil {
 		return err
 	}
